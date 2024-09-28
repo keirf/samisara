@@ -1,0 +1,5 @@
+ACTION=="add", ATTRS{product}=="Samisara", TAG+="uaccess"
+
+# Artery-Tech DFU
+ACTION=="add", SUBSYSTEM=="usb", \
+ATTRS{idVendor}=="2e3c", ATTRS{idProduct}=="df11", TAG+="uaccess"

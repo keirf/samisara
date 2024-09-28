@@ -1,0 +1,33 @@
+
+Name            A1200   A600    GPIO
+Row1             7       1      PA0
+Row2             5       2      PA1
+Row3             1       3      PA2
+Row4             2       5      PA3
+Row5             3       7      PA4
+Row6             4       -      PA5
+Col1            15      15      PB15
+Col2            16      16      PB14
+Col3            17      17      PB13
+Col4            18      18      PB12
+Col5            19      19      PB11
+Col6            20      20      PB10
+Col7            21      21      PB9
+Col8            22      22      PB8
+Col9            23      23      PB7
+Col10           24      24      PB6
+Col11           25      25      PB5
+Col12           26      26      PB4
+Col13           27      27      PB3
+Col14           28      28      PB1
+Col15           29      29      PB0
+R.Shift          6       6      PA6
+R.Alt            8       8      PA7
+R.Amiga         10      10      PA8
+Ctrl            11      11      PC13
+L.Shift         12      12      PC15
+L.Alt           13      13      PC14
+L.Amiga         14      14      PA15
+LED_GND         31       4      PB2 (via o/c NPN)
+LED_VCC          9       9      5v via 100R
+ModGND          30      30      GND

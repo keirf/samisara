@@ -1,0 +1,56 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+
+  build-ubuntu:
+    runs-on: ubuntu-22.04
+    steps:
+
+    - uses: actions/checkout@v4
+
+    - name: Set environment variables
+      id: vars
+      run: |
+        echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+    - name: Dependency packages (apt)
+      run: |
+        sudo apt update
+        sudo apt -y install git gcc-arm-none-eabi python3-pip srecord zip
+
+    - name: Dependency packages (pip)
+      run: python3 -m pip install --user crcmod intelhex
+
+    - name: Build dist
+      run: |
+        export P=samisara
+        export V=${{ steps.vars.outputs.sha_short }}
+        make -j4 dist
+        mkdir -p _cidist
+        rm out/$P-*.zip
+        mv out/$P-* $P-$V
+        rm $P-$V/RELEASE_NOTES
+        git rev-parse HEAD >$P-$V/COMMIT
+        zip -r $P-$V.zip $P-$V
+        mv $P-$V.zip _cidist/
+
+    - name: Build debug dist
+      run: |
+        export P=samisara
+        export V=${{ steps.vars.outputs.sha_short }}-debug
+        make -j4 dist level=debug
+        rm out/$P-*.zip
+        mv out/$P-* $P-$V
+        rm $P-$V/RELEASE_NOTES
+        git rev-parse HEAD >$P-$V/COMMIT
+        echo debug >>$P-$V/COMMIT
+        zip -r $P-$V.zip $P-$V
+        mv $P-$V.zip _cidist/
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: samisara.ci.${{ steps.vars.outputs.sha_short }}
+        path: _cidist
