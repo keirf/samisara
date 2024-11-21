@@ -37,6 +37,18 @@ CFLAGS += $(CFLAGS-y) $(FLAGS) -include decls.h
 AFLAGS += $(AFLAGS-y) $(FLAGS) -D__ASSEMBLY__
 LDFLAGS += $(LDFLAGS-y) $(FLAGS) -Wl,--gc-sections
 
+define cc_rule
+$(1): $(SRCDIR)/$(2) $(SRCDIR)/Makefile
+	@echo CC $$@
+	$(CC) $$(CFLAGS) -c $$< -o $$@
+endef
+
+define as_rule
+$(1): $(SRCDIR)/$(2) $(SRCDIR)/Makefile
+	@echo AS $$@
+	$(CC) $$(AFLAGS) -c $$< -o $$@
+endef
+
 SRCDIR := $(shell $(PYTHON) $(ROOT)/scripts/srcdir.py $(CURDIR))
 include $(SRCDIR)/Makefile
 
@@ -80,12 +92,7 @@ build.o: $(OBJS)
 %.dfu: %.hex
 	$(PYTHON) $(ROOT)/scripts/dfu-convert.py -i $< -D $(DFU_DEV) $@
 
-%.o: $(SRCDIR)/%.c $(SRCDIR)/Makefile
-	@echo CC $@
-	$(CC) $(CFLAGS) -c $< -o $@
-
-%.o: $(SRCDIR)/%.S $(SRCDIR)/Makefile
-	@echo AS $@
-	$(CC) $(AFLAGS) -c $< -o $@
+$(eval $(call cc_rule,%.o,%.c))
+$(eval $(call as_rule,%.o,%.S))
 
 -include $(DEPS)
