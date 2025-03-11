@@ -1,4 +1,9 @@
-import hid
+try:
+    # The hidapi package exposes one or two top level modules: hid and,
+    # optionally, hidraw. When both are available we prefer hidraw.
+    import hidraw as hid
+except ModuleNotFoundError:
+    import hid
 
 report_id = 0x01
 report_length = 48
