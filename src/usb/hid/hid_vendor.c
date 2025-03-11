@@ -11,10 +11,12 @@
 
 static struct vdr_state {
     uint8_t idle;
+    uint16_t subreport;
+    uint16_t cmd_result;
 } vdr_state, default_vdr_state = { 0 };
 
-#define VDR_FEAT_REPORT_ID 0x01
-#define VDR_FEAT_REPORT_SZ 48
+#define SAMISARA_VINTF_REPORT_ID 0x01
+#define SAMISARA_VINTF_REPORT_SZ 48
 
 static void vdr_initialise(void)
 {
@@ -22,33 +24,124 @@ static void vdr_initialise(void)
     usb_configure_ep(0x82, EPT_INTERRUPT, USB_FS_MPS);
 }
 
+static bool_t vdr_cmd(uint8_t *data)
+{
+    uint8_t cmd = data[0];
+    uint8_t len = data[1];
+    void *p = &data[2];
+    int i;
+
+    if ((len < 2) || (len > SAMISARA_VINTF_REPORT_SZ))
+        goto bad_cmd;
+    for (i = len; i < SAMISARA_VINTF_REPORT_SZ; i++)
+        if (data[i]) goto bad_cmd;
+    len -= 2;
+
+    switch (cmd) {
+
+    case SAMISARA_CMD_SUBREPORT: {
+        struct samisara_cmd_subreport cmd_subreport;
+        if (len != sizeof(cmd_subreport))
+            goto bad_cmd;
+        memcpy(&cmd_subreport, p, len);
+        if (cmd_subreport.idx > SAMISARA_SUBREPORT_MAX)
+            goto bad_cmd;
+        vdr_state.subreport = cmd_subreport.idx;
+        break;
+    }
+
+    case SAMISARA_CMD_DFU: {
+        struct samisara_cmd_dfu cmd_dfu;
+        if (len != sizeof(cmd_dfu))
+            goto bad_cmd;
+        memcpy(&cmd_dfu, p, len);
+        if (cmd_dfu.deadbeef != 0xdeadbeef)
+            goto bad_cmd;
+        reset_to_bootloader();
+        break;
+    }
+
+    default:
+    bad_cmd:
+        vdr_state.cmd_result = SAMISARA_RESULT_BAD_CMD;
+        return TRUE;
+
+    }
+
+    vdr_state.cmd_result = SAMISARA_RESULT_OKAY;
+    return TRUE;
+}
+
+static bool_t vdr_subreport(uint8_t *data)
+{
+    uint8_t len = 0;
+    void *p = &data[2];
+
+    switch (vdr_state.subreport) {
+
+    case SAMISARA_SUBREPORT_INFO: {
+        struct samisara_subreport_info info = {
+            .max_cmd = SAMISARA_CMD_MAX,
+            .max_subreport = SAMISARA_SUBREPORT_MAX,
+            .cmd_result = vdr_state.cmd_result
+        };
+        len = sizeof(info);
+        memcpy(p, &info, len);
+        break;
+    }
+
+    case SAMISARA_SUBREPORT_BUILD_VER: {
+        len = strlen(build_ver);
+        memcpy(p, build_ver, len);
+        break;
+    }
+
+    case SAMISARA_SUBREPORT_BUILD_DATE: {
+        len = strlen(build_date);
+        memcpy(p, build_date, len);
+        break;
+    }
+
+    default:
+        return FALSE;
+
+    }
+
+    data[0] = vdr_state.subreport;
+    data[1] = len;
+    memset(&data[2+len], 0, SAMISARA_VINTF_REPORT_SZ - len - 2);
+
+    return TRUE;
+}
+
 static bool_t vdr_report_feature(struct usb_device_request *req)
 {
     unsigned int idx = req->wValue & 255;
+    bool_t result;
     int i;
 
-    if (idx != VDR_FEAT_REPORT_ID) {
+    if (idx != SAMISARA_VINTF_REPORT_ID) {
         TRC("bad report id %02x\n", idx);
         return FALSE;
     }
 
-    if (req->wLength != (VDR_FEAT_REPORT_SZ+1)) {
+    if (req->wLength != (SAMISARA_VINTF_REPORT_SZ+1)) {
         TRC("bad report size %u\n", req->wLength);
         return FALSE;
     }
 
     if (req->bRequest & HID_REQ_SET) {
-        for (i = 0; i < req->wLength; i++)
-            TRC("%02x ", ep0.data[i]);
+        result = vdr_cmd(&ep0.data[1]);
     } else {
-        ep0.data_len = VDR_FEAT_REPORT_SZ+1;
-        ep0.data[0] = VDR_FEAT_REPORT_ID;
-        for (i = 1; i < ep0.data_len; i++)
-            ep0.data[i] = i;
+        ep0.data_len = SAMISARA_VINTF_REPORT_SZ+1;
+        ep0.data[0] = SAMISARA_VINTF_REPORT_ID;
+        result = vdr_subreport(&ep0.data[1]);
     }
     
-    TRC("\n");
-    return TRUE;
+    for (i = 0; i < req->wLength; i++)
+        TRC("%02x ", ep0.data[i]);
+    TRC(" -- %d\n", result);
+    return result;
 }
 
 static bool_t vdr_handle_report(struct usb_device_request *req)
@@ -108,11 +201,11 @@ const static uint8_t vdr_hid_report[] aligned(2) = {
     0x09, 0x01, /* Usage (Vendor 0001) */
     0xa1, 0x01, /* Collection (Application) */
     0x09, 0xf0, /* Usage (Vendor) */
-    0x85, VDR_FEAT_REPORT_ID, /* Report ID */
+    0x85, SAMISARA_VINTF_REPORT_ID, /* Report ID */
     0x15, 0x00, /* Logical Minimum (0) */
     0x26, 0xff,0x00, /* Logical Maximum (255) */
     0x75, 0x08, /* Report Size (8) */
-    0x95, VDR_FEAT_REPORT_SZ, /* Report Count */
+    0x95, SAMISARA_VINTF_REPORT_SZ, /* Report Count */
     0xb1, 0x02, /* Feature (Data, Array) */
     0xc0 /* End Collection */
 };

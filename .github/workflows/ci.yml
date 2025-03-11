@@ -9,11 +9,8 @@ jobs:
     steps:
 
     - uses: actions/checkout@v4
-
-    - name: Set environment variables
-      id: vars
-      run: |
-        echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      with:
+        fetch-depth: 0
 
     - name: Dependency packages (apt)
       run: |
@@ -21,36 +18,15 @@ jobs:
         sudo apt -y install git gcc-arm-none-eabi python3-pip srecord zip
 
     - name: Dependency packages (pip)
-      run: python3 -m pip install --user crcmod intelhex
+      run: python3 -m pip install crcmod intelhex setuptools_scm
 
     - name: Build dist
       run: |
-        export P=samisara
-        export V=${{ steps.vars.outputs.sha_short }}
         make -j4 dist
-        mkdir -p _cidist
-        rm out/$P-*.zip
-        mv out/$P-* $P-$V
-        rm $P-$V/RELEASE_NOTES
-        git rev-parse HEAD >$P-$V/COMMIT
-        zip -r $P-$V.zip $P-$V
-        mv $P-$V.zip _cidist/
-
-    - name: Build debug dist
-      run: |
-        export P=samisara
-        export V=${{ steps.vars.outputs.sha_short }}-debug
-        make -j4 dist level=debug
-        rm out/$P-*.zip
-        mv out/$P-* $P-$V
-        rm $P-$V/RELEASE_NOTES
-        git rev-parse HEAD >$P-$V/COMMIT
-        echo debug >>$P-$V/COMMIT
-        zip -r $P-$V.zip $P-$V
-        mv $P-$V.zip _cidist/
+        echo ver=$(make version) >> $GITHUB_ENV
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: samisara.ci.${{ steps.vars.outputs.sha_short }}
-        path: _cidist
+        name: samisara.ci.${{ env.ver }}
+        path: out/*.zip

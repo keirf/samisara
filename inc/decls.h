@@ -31,6 +31,7 @@
 #include "time.h"
 #include "timer.h"
 #include "usb.h"
+#include "samisara_vintf.h"
 
 /*
  * Local variables:

@@ -76,6 +76,8 @@ int snprintf(char *str, size_t size, const char *format, ...)
 
 uint32_t udiv64(uint64_t dividend, uint32_t divisor);
 
+void reset_to_bootloader(void);
+
 /* Board-specific callouts */
 void board_init(void);
 void act_led(bool_t on);
@@ -107,7 +109,8 @@ void keyboard_process(void);
 uint8_t kbd_led(void);
 
 /* Build info. */
-extern const uint8_t fw_major, fw_minor;
+extern const char build_ver[];
+extern const char build_date[];
 
 /* Reset flags. */
 extern volatile uint32_t reset_flag;

@@ -32,10 +32,18 @@ static bool_t check_bootloader_requested(void)
     return match;
 }
 
+void reset_to_bootloader(void)
+{
+    usb_deinit();
+    delay_us(100);
+    reset_flag = 0xdeadbeef;
+    system_reset();
+}
+
 int main(void)
 {
     if (check_bootloader_requested()) {
-        /* Nope, so jump straight at the main firmware. */
+        /* Jump at DFU bootloader. */
         uint32_t sp = *(uint32_t *)BOOTLOADER_START;
         uint32_t pc = *(uint32_t *)(BOOTLOADER_START + 4);
         asm volatile (
@@ -55,7 +63,8 @@ int main(void)
     console_crash_on_input();
     board_init();
 
-    printk("\n** Samisara v%u.%u\n", fw_major, fw_minor);
+    printk("\n** Samisara %s\n", build_ver);
+    printk("** %s\n", build_date);
     printk("** Keir Fraser <keir.xen@gmail.com>\n");
     printk("** https://github.com/keirf/samisara\n\n");
 
@@ -66,14 +75,6 @@ int main(void)
         canary_check();
         usb_process();
         keyboard_process();
-
-#if 0
-        /* XXX */
-        usb_deinit();
-        delay_ms(500);
-        reset_flag = 0xdeadbeef;
-        system_reset();
-#endif
     }
 
     return 0;

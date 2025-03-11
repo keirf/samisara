@@ -7,8 +7,8 @@
  * See the file COPYING for more details, or visit <http://unlicense.org>.
  */
 
-const uint8_t fw_major = FW_MAJOR;
-const uint8_t fw_minor = FW_MINOR;
+const char build_ver[] = BUILD_VER;
+const char build_date[] = BUILD_DATE;
 
 /*
  * Local variables:
