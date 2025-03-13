@@ -5,7 +5,7 @@ try:
 except ModuleNotFoundError:
     import hid
 
-import struct, sys
+import struct, subprocess, sys
 
 ## Command set
 class Cmd:
@@ -15,7 +15,6 @@ class Cmd:
         Subreport: "Subreport",
         DFU: "DFU"
     }
-
 
 ## Command responses/acknowledgements
 class Ack:
@@ -73,32 +72,60 @@ def find_samisara():
             r = d
     return r
 
+# Check that dfu-util and <dfu_file> both exist before resetting Samisara
+def check_dfu_util(dfu_file):
+    dfu_cmd = ['dfu-util', '-l']
+    subprocess.run(dfu_cmd, capture_output=True)
+    open(dfu_file, 'rb')
+
+# Run dfu-util to re-flash Samisara
+def run_dfu_util(dfu_file):
+    dfu_cmd = ['dfu-util', '-w', '-d', '2e3c:df11', '-a', '0',
+               '-D', dfu_file, '-s', ':leave']
+    subprocess.run(dfu_cmd)
+
 def usage():
-    print('Usage: samisara info | dfu', file=sys.stderr)
+    print('Usage: samisara <cmd> <args...>', file=sys.stderr)
+    print('Commands:', file=sys.stderr)
+    print('  info', file=sys.stderr)
+    print('  dfu <dfu_file>', file=sys.stderr)
     sys.exit(1)
 
 def main(argv):
-    if len(argv) != 2:
+
+    if len(argv) < 2:
         usage()
 
     d = find_samisara()
-    if d is None:
+    h = hid.device()
+    if d is not None:
+        h.open_path(d['path'])
+    elif argv[1] != 'dfu':
         print('Device not found', file=sys.stderr)
         sys.exit(1)
 
-    h = hid.device()
-    h.open_path(d['path'])
     sami = Unit(h)
 
-    if argv[1] == 'info':
+    cmd = argv[1]
+    argv = argv[2:]
+
+    if cmd == 'info':
+        if len(argv) != 0:
+            usage()
         print('Device:')
         print_info_line('Port', d['path'].decode('utf-8', 'ignore'), tab=2)
         print_info_line('Firmware', f'{sami.build_ver()}'
                         f' ({sami.build_date()})', tab=2)
         serial = h.get_serial_number_string()
         print_info_line('Serial', serial if serial else 'Unknown', tab=2)
-    elif argv[1] == 'dfu':
-        sami.enter_dfu()
+    elif cmd == 'dfu':
+        if len(argv) != 1:
+            usage()
+        dfu_file = argv[0]
+        check_dfu_util(dfu_file)
+        if d is not None:
+            sami.enter_dfu()
+        run_dfu_util(dfu_file)
     else:
         usage()
 
